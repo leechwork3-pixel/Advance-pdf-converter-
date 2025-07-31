@@ -17,7 +17,7 @@ class Config:
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002585029413"))
 
     # Bot Settings
-    START_PIC = os.environ.get("START_PIC", "https://telegra.ph/file/example.jpg")
+    START_PIC = os.environ.get("START_PIC", "https://i.ibb.co/RTnxJTPK/thumb.jpg")
     
     DEFAULT_START_MESSAGE = """
 Hello {first_name}! 🤖
