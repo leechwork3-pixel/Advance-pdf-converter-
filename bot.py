@@ -9,16 +9,15 @@ from functools import wraps
 from telegraph import Telegraph, upload_file
 import fitz  # PyMuPDF
 
-from pyrogram import Client, filters, enums
+from pyrogram import Client, filters, enums, idle
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import FloodWait
 
 from config import Config
 import database as db
 
-# Initialize services
+# Initialize services that don't require immediate network connection
 telegraph = Telegraph()
-telegraph.create_account(short_name='EbookBot')
 app = Client(
     "EbookBot",
     api_id=Config.API_ID,
@@ -26,6 +25,7 @@ app = Client(
     bot_token=Config.BOT_TOKEN,
     in_memory=True
 )
+
 
 # --- Decorators for Admin Checks ---
 def admin_required(func):
@@ -44,6 +44,7 @@ def sudo_required(func):
             return await message.reply_text("⛔️ Only Sudo Admins can use this command.")
         return await func(client, message, *args, **kwargs)
     return wrapped
+
 
 # --- Helper Functions ---
 async def run_command(command: str):
@@ -65,37 +66,32 @@ def get_conversion_options(input_ext: str) -> list:
     }
     return options.get(input_ext, [])
 
+
 # --- Document Handler (Presents Buttons) ---
 @app.on_message(filters.document)
 async def document_handler(client, message: Message):
     if not message.document.file_name:
         return await message.reply_text("File must have a name.")
-
     input_ext = message.document.file_name.split('.')[-1].lower()
     output_options = get_conversion_options(input_ext)
-
     if not output_options:
         return await message.reply_text(
             f"Sorry, conversion from `.{input_ext}` is not supported.",
             quote=True
         )
-
-    buttons = []
-    for out_ext in output_options:
-        buttons.append(
-            InlineKeyboardButton(
-                text=f"Convert to {out_ext.upper()}",
-                callback_data=f"convert|{out_ext}"
-            )
-        )
-    
+    buttons = [
+        InlineKeyboardButton(
+            text=f"Convert to {out_ext.upper()}",
+            callback_data=f"convert|{out_ext}"
+        ) for out_ext in output_options
+    ]
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
-    
     await message.reply_text(
         "**Choose the format you want to convert to:**",
         reply_markup=InlineKeyboardMarkup(keyboard),
         quote=True
     )
+
 
 # --- Callback Handler (Performs Conversion) ---
 @app.on_callback_query(filters.regex(r"^convert\|"))
@@ -103,21 +99,16 @@ async def conversion_callback(client, callback_query: CallbackQuery):
     original_message = callback_query.message.reply_to_message
     if not original_message or not original_message.document:
         return await callback_query.answer("Error: Original file not found.", show_alert=True)
-        
     await callback_query.message.edit_text("`Downloading file...`")
-
     input_doc = original_message.document
     input_path = await original_message.download()
-    
     file_name_no_ext = os.path.splitext(input_doc.file_name)[0]
     target_ext = callback_query.data.split("|")[1]
     output_path = f"{file_name_no_ext}.{target_ext}"
-
     try:
         await callback_query.message.edit_text(
             f"`Converting to {target_ext.upper()}... This may take a moment.`"
         )
-        
         if input_doc.file_name.endswith(".cbz") and target_ext == "pdf":
             temp_dir = "temp_cbz_extract"
             os.makedirs(temp_dir, exist_ok=True)
@@ -133,7 +124,6 @@ async def conversion_callback(client, callback_query: CallbackQuery):
             pdf_doc.save(output_path)
             pdf_doc.close()
             shutil.rmtree(temp_dir)
-
         elif input_doc.file_name.endswith(".pdf") and target_ext == "cbz":
             temp_dir = "temp_pdf_extract"
             os.makedirs(temp_dir, exist_ok=True)
@@ -146,10 +136,8 @@ async def conversion_callback(client, callback_query: CallbackQuery):
                 for img_file in sorted(os.listdir(temp_dir)):
                     cbz.write(os.path.join(temp_dir, img_file), img_file)
             shutil.rmtree(temp_dir)
-        
         else:
             await run_command(f'ebook-convert "{input_path}" "{output_path}"')
-
         await callback_query.message.edit_text("`Conversion complete! Uploading...`")
         await client.send_document(
             chat_id=callback_query.message.chat.id,
@@ -158,7 +146,6 @@ async def conversion_callback(client, callback_query: CallbackQuery):
             reply_to_message_id=original_message.id
         )
         await callback_query.message.delete()
-
     except Exception as e:
         error_message = f"**Conversion Failed!**\n\n**Error:** `{e}`"
         await callback_query.message.edit_text(error_message)
@@ -167,6 +154,7 @@ async def conversion_callback(client, callback_query: CallbackQuery):
     finally:
         if os.path.exists(input_path): os.remove(input_path)
         if 'output_path' in locals() and os.path.exists(output_path): os.remove(output_path)
+
 
 # --- Other Handlers (Start, Photo, Admin Commands) ---
 @app.on_message(filters.command(["start", "help"]))
@@ -177,24 +165,19 @@ async def start_handler(client, message: Message):
             await client.send_message(Config.LOG_CHANNEL, f"🎉 **New User**\n\n**Name:** {message.from_user.mention}\n**ID:** `{user_id}`")
         except Exception as e:
             print(f"Log channel error: {e}")
-
     settings = await db.get_settings()
     start_text = settings.get("start_message", Config.DEFAULT_START_MESSAGE)
     start_pic = settings.get("start_pic", Config.START_PIC)
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Commands & Help", callback_data="show_help")]])
-
     try:
         await message.reply_photo(photo=start_pic, caption=start_text.format(first_name=message.from_user.first_name), reply_markup=keyboard)
     except Exception:
-        # ** THIS IS THE FIX **
-        # Fallback if photo URL is invalid or other issues
         await message.reply(
             text=start_text.format(first_name=message.from_user.first_name),
             reply_markup=keyboard,
             parse_mode=enums.ParseMode.HTML
         )
 
-# Help callback
 @app.on_callback_query(filters.regex("show_help"))
 async def show_help_callback(client, callback_query):
     await callback_query.answer()
@@ -219,7 +202,6 @@ To upload an image to Telegraph, just send me the image.
 """
     await callback_query.message.reply_text(help_text, quote=True, disable_web_page_preview=True)
 
-# Photo to Telegraph handler
 @app.on_message(filters.photo)
 async def telegraph_upload_handler(client, message: Message):
     msg = await message.reply_text("`Uploading to Telegraph...`", quote=True)
@@ -233,7 +215,6 @@ async def telegraph_upload_handler(client, message: Message):
     finally:
         if 'photo_path' in locals() and os.path.exists(photo_path): os.remove(photo_path)
 
-# Admin command handlers
 @app.on_message(filters.command("settings") & filters.private)
 @admin_required
 async def settings_handler(client, message: Message):
@@ -281,7 +262,7 @@ async def broadcast_handler(client, message: Message):
             success += 1
         except FloodWait as e:
             await asyncio.sleep(e.value)
-            await message.reply_to_message.copy(user_id) # Retry
+            await message.reply_to_message.copy(user_id)
             success += 1
         except Exception:
             failed += 1
@@ -315,8 +296,28 @@ async def remove_admin_handler(client, message: Message):
         await message.reply_text(f"❌ Demoted {user.mention}.")
     except Exception as e: await message.reply_text(f"Error: {e}")
 
-# --- Start Bot ---
+
+# --- Main Application Execution ---
+async def main():
+    """Main function to start services and the bot."""
+    # Connect to the database first
+    await db.connect_db()
+
+    # Create telegraph account (this is a synchronous call)
+    telegraph.create_account(short_name='EbookBot')
+
+    # Start the Pyrogram client
+    await app.start()
+    print("✅ Bot has started successfully!")
+    
+    # Keep the bot running until it's stopped
+    await idle()
+    
+    # Stop the client when the process is interrupted
+    print("Bot is stopping...")
+    await app.stop()
+
 if __name__ == "__main__":
-    print("Bot is starting...")
-    app.run()
+    print("Bot instance is initializing...")
+    asyncio.run(main())
     
