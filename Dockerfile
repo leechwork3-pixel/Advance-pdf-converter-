@@ -1,19 +1,30 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+# Use a full Debian-based Python image to ensure compatibility with Calibre's dependencies
+FROM python:3.10-bullseye
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /app
 
-# Copy the dependencies file to the working directory
+# Install system dependencies required for Calibre and other libraries
+RUN apt-get update && apt-get install -y \
+    wget \
+    xz-utils \
+    libxext6 \
+    libxrender1 \
+    libxtst6 \
+    libgl1 \
+    libfontconfig1 \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+# Download and install Calibre
+RUN wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin
+
+# Copy and install Python dependencies
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install any needed packages specified in requirements.txt
-# We also install git for potential dependencies, though not strictly needed by this list
-RUN apt-get update && apt-get install -y git && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copy the rest of the application code to the working directory
+# Copy the application code
 COPY bot/ ./bot/
 
-# Command to run the application
+# Command to run the bot as a module
 CMD ["python3", "-m", "bot.bot"]
