@@ -17,15 +17,15 @@ RUN apt-get update && \
 # Set the working directory for your application
 WORKDIR /app
 
-# Create a non-root user and group for better security
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup
-
 # --- THE FIX IS HERE ---
+# Create a non-root user and group for better security.
+# The username 'appuser' was added to the end of the command.
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
 # Copy your dependency file first.
-# Corrected the filename to "requirements.txt" (with an 's').
 COPY requirements.txt .
 
-# Install your Python dependencies from the corrected file name.
+# Install your Python dependencies.
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of your application files (bot.py, config.py, etc.)
@@ -34,10 +34,8 @@ COPY . .
 # Switch to the non-root user
 USER appuser
 
-# Expose a port if your bot needs it (e.g., for a web dashboard)
-# You can remove this if your bot doesn't listen on a port.
+# Expose a port if your bot needs it
 EXPOSE 8080
 
 # The command to start your bot
 CMD ["python3", "bot.py"]
-
