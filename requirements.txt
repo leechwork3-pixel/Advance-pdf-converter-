@@ -1,7 +1,10 @@
 # requirements.txt
+
 pyrogram
 tgcrypto
 motor
-telegraph
+python-telegraph
 PyMuPDF
 Pillow
+fastapi
+uvicorn
