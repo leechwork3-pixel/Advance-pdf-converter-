@@ -4,17 +4,17 @@ import os
 
 class Config:
     # Get values from environment variables
-    API_ID = int(os.environ.get("API_ID", "12345"))
-    API_HASH = os.environ.get("API_HASH", "your_api_hash")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "your_bot_token")
+    API_ID = int(os.environ.get("API_ID", "24171111"))
+    API_HASH = os.environ.get("API_HASH", "c850cb56b64b6c3b10ade9c28ef7966a")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7804274444:AAESKpYJQVhftykvv5cKZP2uyCYvxlwQvow")
 
     # Database Configuration
-    MONGO_URI = os.environ.get("MONGO_URI", "your_mongodb_uri")
+    MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://pankaj1123r:IudexNeuvillette@iudexneuvillette.voopvck.mongodb.net/?retryWrites=true&w=majority&appName=IudexNeuvillette")
     DB_NAME = os.environ.get("DB_NAME", "ebook_bot_db")
 
     # Admin and Channel Configuration
-    SUDO_ADMINS = [int(admin_id) for admin_id in os.environ.get("SUDO_ADMINS", "100100100").split()]
-    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-100123456789"))
+    SUDO_ADMINS = [int(admin_id) for admin_id in os.environ.get("SUDO_ADMINS", "1335306418").split()]
+    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002585029413"))
 
     # Bot Settings
     START_PIC = os.environ.get("START_PIC", "https://telegra.ph/file/example.jpg")
