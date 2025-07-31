@@ -9,7 +9,7 @@ from functools import wraps
 from telegraph import Telegraph, upload_file
 import fitz  # PyMuPDF
 
-from pyrogram import Client, filters, enums
+from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import FloodWait
 
@@ -19,9 +19,15 @@ import database as db
 # Initialize services
 telegraph = Telegraph()
 telegraph.create_account(short_name='EbookBot')
-app = Client("EbookBot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN)
+app = Client(
+    "EbookBot",
+    api_id=Config.API_ID,
+    api_hash=Config.API_HASH,
+    bot_token=Config.BOT_TOKEN,
+    in_memory=True  # Fix for read-only filesystems on hosting platforms
+)
 
-# --- Decorators for Admin Checks (No Changes) ---
+# --- Decorators for Admin Checks ---
 def admin_required(func):
     @wraps(func)
     async def wrapped(client, message, *args, **kwargs):
@@ -71,7 +77,7 @@ async def document_handler(client, message: Message):
 
     if not output_options:
         return await message.reply_text(
-            f"Sorry, conversion from `. {input_ext}` is not supported.",
+            f"Sorry, conversion from `.{input_ext}` is not supported.",
             quote=True
         )
 
@@ -175,7 +181,7 @@ async def conversion_callback(client, callback_query: CallbackQuery):
         if 'output_path' in locals() and os.path.exists(output_path): os.remove(output_path)
 
 
-# --- Other Handlers (Start, Photo, Admin Commands) - No changes from previous version ---
+# --- Other Handlers (Start, Photo, Admin Commands) ---
 
 # /start and /help handler
 @app.on_message(filters.command(["start", "help"]))
@@ -234,7 +240,7 @@ async def telegraph_upload_handler(client, message: Message):
     finally:
         if 'photo_path' in locals() and os.path.exists(photo_path): os.remove(photo_path)
 
-# Admin command handlers (no changes)
+# Admin command handlers
 @app.on_message(filters.command("settings") & filters.private)
 @admin_required
 async def settings_handler(client, message: Message):
@@ -320,3 +326,4 @@ async def remove_admin_handler(client, message: Message):
 if __name__ == "__main__":
     print("Bot is starting...")
     app.run()
+        
