@@ -1,49 +1,19 @@
-# Dockerfile
+# Use an official Python runtime as a parent image
+FROM python:3.10-slim
 
-# Use the newer Debian 12 image
-FROM debian:bookworm-slim
-
-# Set environment variables to prevent interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Set the working directory
+# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies, Python, pip, and Calibre
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    wget \
-    xz-utils \
-    # --- Dependencies required by Calibre (from repository) ---
-    libglib2.0-0 \
-    libegl1 \
-    libopengl0 \
-    libxcb-cursor0 \
-    libnss3 \
-    libsm6 \
-    libxss1 \
-    libdbus-glib-1-2 \
-    libfontconfig1 \
-    libxinerama1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libcups2 && \
-    # --- Download and install Calibre ---
-    wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin && \
-    # --- Clean up to reduce image size ---
-    apt-get purge -y --auto-remove wget && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy the requirements file and install Python packages
+# Copy the dependencies file to the working directory
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
-COPY . .
+# Install any needed packages specified in requirements.txt
+# We also install git for potential dependencies, though not strictly needed by this list
+RUN apt-get update && apt-get install -y git && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Define the command to run the bot
-CMD ["python3", "bot.py"]
+# Copy the rest of the application code to the working directory
+COPY bot/ ./bot/
+
+# Command to run the application
+CMD ["python3", "-m", "bot.bot"]
