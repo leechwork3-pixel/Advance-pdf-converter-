@@ -3,7 +3,7 @@
 pyrogram
 tgcrypto
 motor
-python-telegraph
+telegraph
 PyMuPDF
 Pillow
 fastapi
