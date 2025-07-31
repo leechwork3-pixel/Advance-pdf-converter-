@@ -9,7 +9,7 @@ from functools import wraps
 from telegraph import Telegraph, upload_file
 import fitz  # PyMuPDF
 
-from pyrogram import Client, filters
+from pyrogram import Client, filters, enums
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import FloodWait
 
@@ -24,13 +24,13 @@ app = Client(
     api_id=Config.API_ID,
     api_hash=Config.API_HASH,
     bot_token=Config.BOT_TOKEN,
-    in_memory=True  # Fix for read-only filesystems on hosting platforms
+    in_memory=True
 )
 
 # --- Decorators for Admin Checks ---
 def admin_required(func):
     @wraps(func)
-    async def wrapped(client, message, *args, **kwargs):
+    async def wrapped(client, message: Message, *args, **kwargs):
         user_id = message.from_user.id
         if user_id not in await db.get_all_admin_ids():
             return await message.reply_text("🚫 You are not authorized to use this command.")
@@ -39,7 +39,7 @@ def admin_required(func):
 
 def sudo_required(func):
     @wraps(func)
-    async def wrapped(client, message, *args, **kwargs):
+    async def wrapped(client, message: Message, *args, **kwargs):
         if not await db.is_sudo_admin(message.from_user.id):
             return await message.reply_text("⛔️ Only Sudo Admins can use this command.")
         return await func(client, message, *args, **kwargs)
@@ -55,7 +55,6 @@ async def run_command(command: str):
     return stdout.decode().strip()
 
 def get_conversion_options(input_ext: str) -> list:
-    """Returns a list of possible output formats for a given input format."""
     options = {
         "pdf": ["epub", "mobi", "azw3", "fb2", "cbz"],
         "epub": ["pdf", "mobi", "azw3", "fb2"],
@@ -90,7 +89,6 @@ async def document_handler(client, message: Message):
             )
         )
     
-    # Arrange buttons in rows of 2
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     
     await message.reply_text(
@@ -99,16 +97,13 @@ async def document_handler(client, message: Message):
         quote=True
     )
 
-
 # --- Callback Handler (Performs Conversion) ---
 @app.on_callback_query(filters.regex(r"^convert\|"))
 async def conversion_callback(client, callback_query: CallbackQuery):
-    # This is the original message that contains the file
     original_message = callback_query.message.reply_to_message
     if not original_message or not original_message.document:
         return await callback_query.answer("Error: Original file not found.", show_alert=True)
         
-    # Edit the button message to show progress
     await callback_query.message.edit_text("`Downloading file...`")
 
     input_doc = original_message.document
@@ -123,16 +118,12 @@ async def conversion_callback(client, callback_query: CallbackQuery):
             f"`Converting to {target_ext.upper()}... This may take a moment.`"
         )
         
-        # --- Native Conversions (Fastest) ---
         if input_doc.file_name.endswith(".cbz") and target_ext == "pdf":
-            # CBZ to PDF
             temp_dir = "temp_cbz_extract"
             os.makedirs(temp_dir, exist_ok=True)
             with zipfile.ZipFile(input_path, 'r') as cbz: cbz.extractall(temp_dir)
-            
             img_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir)])
             if not img_files: raise ValueError("CBZ is empty.")
-
             pdf_doc = fitz.open()
             for img_path in img_files:
                 img_doc = fitz.open(img_path)
@@ -144,7 +135,6 @@ async def conversion_callback(client, callback_query: CallbackQuery):
             shutil.rmtree(temp_dir)
 
         elif input_doc.file_name.endswith(".pdf") and target_ext == "cbz":
-            # PDF to CBZ
             temp_dir = "temp_pdf_extract"
             os.makedirs(temp_dir, exist_ok=True)
             pdf_doc = fitz.open(input_path)
@@ -157,11 +147,9 @@ async def conversion_callback(client, callback_query: CallbackQuery):
                     cbz.write(os.path.join(temp_dir, img_file), img_file)
             shutil.rmtree(temp_dir)
         
-        # --- Calibre Conversions (For everything else) ---
         else:
             await run_command(f'ebook-convert "{input_path}" "{output_path}"')
 
-        # --- Upload the converted file ---
         await callback_query.message.edit_text("`Conversion complete! Uploading...`")
         await client.send_document(
             chat_id=callback_query.message.chat.id,
@@ -169,37 +157,42 @@ async def conversion_callback(client, callback_query: CallbackQuery):
             caption=f"Converted from `{input_doc.file_name}`",
             reply_to_message_id=original_message.id
         )
-        await callback_query.message.delete() # Clean up the button message
+        await callback_query.message.delete()
 
     except Exception as e:
         error_message = f"**Conversion Failed!**\n\n**Error:** `{e}`"
         await callback_query.message.edit_text(error_message)
-        await client.send_message(Config.LOG_CHANNEL, f"⚠️ **Conversion Error**\n\n`{e}`")
+        if Config.LOG_CHANNEL != 0:
+            await client.send_message(Config.LOG_CHANNEL, f"⚠️ **Conversion Error**\n\n`{e}`")
     finally:
-        # Clean up local files
         if os.path.exists(input_path): os.remove(input_path)
         if 'output_path' in locals() and os.path.exists(output_path): os.remove(output_path)
 
-
 # --- Other Handlers (Start, Photo, Admin Commands) ---
-
-# /start and /help handler
 @app.on_message(filters.command(["start", "help"]))
 async def start_handler(client, message: Message):
     user_id = message.from_user.id
-    if await db.add_user(user_id):
+    if await db.add_user(user_id) and Config.LOG_CHANNEL != 0:
         try:
             await client.send_message(Config.LOG_CHANNEL, f"🎉 **New User**\n\n**Name:** {message.from_user.mention}\n**ID:** `{user_id}`")
         except Exception as e:
             print(f"Log channel error: {e}")
+
     settings = await db.get_settings()
     start_text = settings.get("start_message", Config.DEFAULT_START_MESSAGE)
     start_pic = settings.get("start_pic", Config.START_PIC)
     keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("Commands & Help", callback_data="show_help")]])
+
     try:
         await message.reply_photo(photo=start_pic, caption=start_text.format(first_name=message.from_user.first_name), reply_markup=keyboard)
     except Exception:
-        await message.reply_html(start_text.format(first_name=message.from_user.first_name), reply_markup=keyboard)
+        # ** THIS IS THE FIX **
+        # Fallback if photo URL is invalid or other issues
+        await message.reply(
+            text=start_text.format(first_name=message.from_user.first_name),
+            reply_markup=keyboard,
+            parse_mode=enums.ParseMode.HTML
+        )
 
 # Help callback
 @app.on_callback_query(filters.regex("show_help"))
@@ -326,4 +319,4 @@ async def remove_admin_handler(client, message: Message):
 if __name__ == "__main__":
     print("Bot is starting...")
     app.run()
-        
+    
