@@ -1,10 +1,8 @@
-# requirements.txt
-
-pyrogram
-tgcrypto
-motor
+python-telegram-bot
+pymongo[srv]
+python-dotenv
 telegraph
-PyMuPDF
 Pillow
-fastapi
-uvicorn
+PyMuPDF
+img2pdf
+natsort
