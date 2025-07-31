@@ -1,9 +1,9 @@
 # Dockerfile
 
-# Use a newer Debian image that has the required libraries for Calibre
+# Use the newer Debian 12 image
 FROM debian:bookworm-slim
 
-# Set environment variables to prevent interactive prompts during installation
+# Set environment variables to prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set the working directory
@@ -20,7 +20,10 @@ RUN apt-get update && \
     libxrender1 \
     libxtst6 \
     libxrandr2 \
-    libglib2.0-0 && \
+    libglib2.0-0 \
+    # Add the newly required libraries for Calibre
+    libegl1 \
+    libopengl0 && \
     # Download and install Calibre
     wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin && \
     # Clean up to reduce image size
