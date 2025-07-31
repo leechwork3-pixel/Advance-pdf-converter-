@@ -20,12 +20,13 @@ WORKDIR /app
 # Create a non-root user and group for better security
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup
 
-# Copy your dependency file first to leverage Docker's build cache
-# NOTE: I am using "requirement.txt" to match your exact file name.
-COPY requirement.txt .
+# --- THE FIX IS HERE ---
+# Copy your dependency file first.
+# Corrected the filename to "requirements.txt" (with an 's').
+COPY requirements.txt .
 
-# Install your Python application's dependencies from your file
-RUN pip install --no-cache-dir -r requirement.txt
+# Install your Python dependencies from the corrected file name.
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of your application files (bot.py, config.py, etc.)
 COPY . .
@@ -39,3 +40,4 @@ EXPOSE 8080
 
 # The command to start your bot
 CMD ["python3", "bot.py"]
+
