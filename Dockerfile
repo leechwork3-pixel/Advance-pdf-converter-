@@ -16,17 +16,14 @@ RUN apt-get update && \
     python3-pip \
     wget \
     xz-utils \
-    libxext6 \
-    libxrender1 \
-    libxtst6 \
-    libxrandr2 \
+    # --- Dependencies required by Calibre ---
     libglib2.0-0 \
-    # Add the newly required libraries for Calibre
     libegl1 \
-    libopengl0 && \
-    # Download and install Calibre
+    libopengl0 \
+    libxcb-cursor0 && \
+    # --- Download and install Calibre ---
     wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin && \
-    # Clean up to reduce image size
+    # --- Clean up to reduce image size ---
     apt-get purge -y --auto-remove wget && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
