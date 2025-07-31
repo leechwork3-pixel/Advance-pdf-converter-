@@ -1,0 +1,7 @@
+# requirements.txt
+pyrogram
+tgcrypto
+motor
+python-telegraph
+PyMuPDF
+Pillow
