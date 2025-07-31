@@ -4,7 +4,7 @@ FROM debian:12-slim
 # Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies and Calibre in a single layer to optimize image size
+# Install system dependencies, Python, and Calibre in a single layer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     python3 python3-pip wget xz-utils \
@@ -18,19 +18,24 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Create a non-root user and group for better security
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-USER appuser
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup
 
-# Copy your application files into the container
+# Copy your dependency file first to leverage Docker's build cache
+# NOTE: I am using "requirement.txt" to match your exact file name.
+COPY requirement.txt .
+
+# Install your Python application's dependencies from your file
+RUN pip install --no-cache-dir -r requirement.txt
+
+# Copy the rest of your application files (bot.py, config.py, etc.)
 COPY . .
 
-# (Optional) Install your Python application's dependencies
-# UNCOMMENT the line below if you have a requirements.txt file
-# RUN pip install --no-cache-dir -r requirements.txt
+# Switch to the non-root user
+USER appuser
 
-# Expose the port your application will run on
+# Expose a port if your bot needs it (e.g., for a web dashboard)
+# You can remove this if your bot doesn't listen on a port.
 EXPOSE 8080
 
-# --- CHANGE THIS LINE ---
-# Replace "your_main_script.py" with the actual name of your file (e.g., bot.py)
-CMD ["python3", "your_main_script.py"]
+# The command to start your bot
+CMD ["python3", "bot.py"]
