@@ -2,15 +2,35 @@
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config
+import sys
 
-# Initialize client and database
-client = AsyncIOMotorClient(Config.MONGO_URI)
-db = client[Config.DB_NAME]
+client = None
+db = None
+users_col = None
+admins_col = None
+settings_col = None
 
-# Collections
-users_col = db["users"]
-admins_col = db["admins"]
-settings_col = db["settings"]
+async def connect_db():
+    """Initializes the database connection and collections."""
+    global client, db, users_col, admins_col, settings_col
+    
+    print("Attempting to connect to MongoDB...")
+    client = AsyncIOMotorClient(Config.MONGO_URI)
+    
+    try:
+        # The ismaster command is cheap and does not require auth.
+        await client.admin.command('ismaster')
+        print("✅ MongoDB connection successful.")
+    except Exception as e:
+        print(f"❌ Could not connect to MongoDB: {e}", file=sys.stderr)
+        # Exit the application if DB connection fails
+        sys.exit(1)
+
+    db = client[Config.DB_NAME]
+    users_col = db["users"]
+    admins_col = db["admins"]
+    settings_col = db["settings"]
+
 
 # --- User Management ---
 async def add_user(user_id: int):
@@ -45,6 +65,7 @@ async def get_all_admin_ids():
 
 # --- Bot Settings Management ---
 async def get_settings():
+    """Fetches all settings from the database."""
     settings = await settings_col.find_one({"_id": "bot_settings"})
     if not settings:
         return {
@@ -54,8 +75,10 @@ async def get_settings():
     return settings
 
 async def update_setting(key: str, value: str):
+    """Updates a specific setting."""
     await settings_col.update_one(
         {"_id": "bot_settings"},
         {"$set": {key: value}},
         upsert=True
     )
+    
