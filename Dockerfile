@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Install system-level dependencies required by Calibre
+# ADDED libfontconfig1 to fix the Calibre installation warnings
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     wget \
@@ -14,7 +15,8 @@ RUN apt-get update && \
     libegl1 \
     libopengl0 \
     libxcb-cursor0 \
-    libfreetype6 && \
+    libfreetype6 \
+    libfontconfig1 && \
     # Download and install Calibre
     wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin && \
     # Clean up to reduce image size
@@ -22,7 +24,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# --- THE FIX: Create and activate a virtual environment ---
+# Create and activate a virtual environment to avoid system conflicts
 ENV VENV_PATH=/opt/venv
 RUN python3 -m venv $VENV_PATH
 ENV PATH="$VENV_PATH/bin:$PATH"
@@ -50,3 +52,4 @@ EXPOSE 8080
 
 # The command to start your bot
 CMD ["python", "bot.py"]
+
