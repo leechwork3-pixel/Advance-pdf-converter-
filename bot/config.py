@@ -11,7 +11,7 @@ API_HASH = os.environ.get("API_HASH", "c850cb56b64b6c3b10ade9c28ef7966a")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7804274444:AAESKpYJQVhftykvv5cKZP2uyCYvxlwQvow")
 
 # MongoDB Database URI
-MONGO_URI = os.environ.get("MONGO_URI", "")
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://pankaj1123r:IudexNeuvillette@iudexneuvillette.voopvck.mongodb.net/?retryWrites=true&w=majority&appName=IudexNeuvillette")
 DB_NAME = os.environ.get("DB_NAME", "EbookConverterBot")
 
 # Sudo Admins: User IDs of bot owners who can grant/revoke admin rights.
